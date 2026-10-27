@@ -1,0 +1,28 @@
+# Sesión de Chrome y entorno virtual
+.chrome_profile/
+scrap/
+.venv/
+venv/
+env/
+
+# Secretos (cookies de Instagram y clave de Gemini)
+.env
+.env*.local
+
+# Datos generados por main.py
+*_data.json
+*_analisis.txt
+fotos/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Notas locales
+AGENTS.md

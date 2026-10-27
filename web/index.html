@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Resultados</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+<button id="elegirCarpeta">Elegir carpeta del proyecto</button>
+<input type="file" id="archivo" accept=".json">
+<p id="error"></p>
+<canvas id="grafica"></canvas>
+<pre id="datos"></pre>
+<script>
+// cambia aquí: nombre del JSON que se muestra (debe estar en la carpeta del proyecto)
+const JSON_ARCHIVO = "alondra_cgp_data.json";
+
+let grafica;
+let carpeta = null;
+
+function mostrar(data) {
+    const {benford, ...resto} = data;
+    const digitos = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+    if (grafica) grafica.destroy();
+    grafica = new Chart(document.getElementById("grafica"), {
+        data: {
+            labels: digitos,
+            datasets: [
+                {type: "bar", label: `Observado (n=${benford.muestra})`, data: digitos.map(d => benford.observado[d])},
+                {type: "line", label: "Benford esperado", data: digitos.map(d => benford.esperado[d])}
+            ]
+        }
+    });
+
+    document.getElementById("datos").textContent = JSON.stringify(resto, null, 2);
+}
+
+const error = document.getElementById("error");
+if (!window.showDirectoryPicker) error.textContent = "Para cargar automáticamente usa Chrome o Edge; o abre un JSON con el selector de archivo.";
+
+// Pide acceso a la carpeta del proyecto y carga JSON_ARCHIVO de inmediato
+document.getElementById("elegirCarpeta").onclick = async () => {
+    try {
+        carpeta = await showDirectoryPicker();
+        const handle = await carpeta.getFileHandle(JSON_ARCHIVO);
+        mostrar(JSON.parse(await (await handle.getFile()).text()));
+        error.textContent = "";
+    } catch (e) {
+        error.textContent = `No se pudo cargar ${JSON_ARCHIVO} desde la carpeta elegida`;
+    }
+};
+
+document.getElementById("archivo").onchange = async (event) => mostrar(JSON.parse(await event.target.files[0].text()));
+</script>
+</body>
+</html>
