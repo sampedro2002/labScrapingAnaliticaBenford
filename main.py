@@ -359,13 +359,26 @@ def calculate_engagement(posts, followers=None):
     }
 
 
+def chi2_p_value(x, df=8):
+    """P(X >= x) para chi-cuadrado con df par (aquí 8 = 9 dígitos - 1), sin dependencias externas."""
+    half = x / 2
+    return math.exp(-half) * sum(half ** k / math.factorial(k) for k in range(df // 2))
+
+
 def benford(numbers):
     digits = [int(str(n)[0]) for n in numbers if isinstance(n, int) and n > 0]
     total = len(digits)
+    esperado = {d: math.log10(1 + 1 / d) for d in range(1, 10)}
+    conteo = {d: digits.count(d) for d in range(1, 10)}
+    # Chi-cuadrado de Pearson: sum((O - E)^2 / E) con E = n * P(d)
+    chi2 = sum((conteo[d] - total * esperado[d]) ** 2 / (total * esperado[d]) for d in range(1, 10)) if total else None
     return {
         "muestra": total,
-        "observado": {d: (digits.count(d) / total if total else 0) for d in range(1, 10)},
-        "esperado": {d: math.log10(1 + 1 / d) for d in range(1, 10)},
+        "conteo": conteo,
+        "observado": {d: (conteo[d] / total if total else 0) for d in range(1, 10)},
+        "esperado": esperado,
+        "chi2": chi2,
+        "p_value": chi2_p_value(chi2) if total else None,
     }
 
 

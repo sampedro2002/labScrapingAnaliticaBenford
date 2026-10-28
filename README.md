@@ -2,14 +2,15 @@
 
 Programa de línea de comandos en Python que extrae los datos públicos de un perfil de Instagram y los envía a la API de **Gemini** para inferir rasgos de personalidad con el modelo **Big Five (OCEAN)**. Proyecto del laboratorio de Scraping (Arquitectura, semestre 7).
 
-El resultado es un `.json` con los datos extraídos, un `.txt` con el análisis y las fotos de los seguidores. Para verlo, abre `web/index.html` en el navegador y elige el JSON.
+El resultado es un `.json` con los datos extraídos, un `.txt` con el análisis y las fotos de los seguidores. Para verlo, abre `web/index.html` en el navegador y elige el JSON: la página muestra el perfil, la ley de Benford, el análisis de personalidad, el engagement, las mejores publicaciones y los seguidores.
 
 ## Cómo funciona
 
 1. **Extracción** (ver [más abajo](#extracción-de-datos)): perfil, seguidores, seguidos, publicaciones y comentarios.
 2. **Engagement**: likes y comentarios totales, promedio, tasa sobre seguidores, mejores publicaciones y varianza.
-3. **Análisis con Gemini**: todo lo anterior se arma como contexto y se envía al modelo.
-4. **Salida**: se guardan el JSON completo y el texto del análisis.
+3. **Ley de Benford** (ver [más abajo](#ley-de-benford)): distribución del primer dígito de los seguidores de cada seguidor, con χ².
+4. **Análisis con Gemini**: todo lo anterior se arma como contexto y se envía al modelo.
+5. **Salida**: se guardan el JSON completo y el texto del análisis.
 
 ## Análisis con IA
 
@@ -66,6 +67,25 @@ Un análisis breve en español, con un nivel (Alta / Media / Baja) y una línea 
 - Los comentarios son de terceros y pueden sesgar la lectura del perfil.
 - Los datos del perfil se envían a un servicio externo (Google): úsalo solo con cuentas que tengas autorización para analizar.
 
+## Ley de Benford
+
+Se toma el primer dígito de cada número de **seguidores** de los seguidores (`seguidores_detalle`). Los valores en 0 no cuentan. Se compara con la distribución de Benford, P(d) = log10(1 + 1/d).
+
+| Campo de `benford` | Cálculo |
+|---|---|
+| `muestra` | Cantidad de valores válidos (n) |
+| `conteo` | Cuántos números empiezan en cada dígito |
+| `observado` | Proporción de cada dígito en la muestra |
+| `esperado` | log10(1 + 1/d) |
+| `chi2` | Σ (O − E)² / E, con E = n · P(d) |
+| `p_value` | Probabilidad de un χ² igual o mayor, con 8 grados de libertad (9 dígitos − 1) |
+
+Con α = 0.05 el valor crítico es 15.507: si χ² lo supera (p < 0.05), la distribución se aleja de Benford.
+
+La página también muestra un porcentaje de desviación: ½ · Σ |observado − esperado|. Solo indica qué tanto se aleja la gráfica de Benford. **No es la probabilidad de que la cuenta sea un bot.** Con muestras de unos 200 valores, una desviación pequeña es normal por azar, y Benford no está pensado para detectar bots.
+
+Solo se calcula para seguidores. Los conteos de los seguidos de cada seguidor siguen en `seguidores_detalle`, por si quieres analizarlos.
+
 ## Extracción de datos
 
 Se usa Chrome (Playwright) solo para tener una sesión iniciada en Instagram; los datos se piden en paralelo
@@ -121,7 +141,7 @@ a mano en la ventana que abre el programa.
 
 | Archivo | Contenido |
 |---|---|
-| `<usuario>_data.json` | Perfil, `followers_list`, `following_list`, `publications`, `seguidores_detalle` (foto, publicaciones, seguidores y seguidos de cada seguidor), `engagement`, `benford` y `analysis` |
+| `<usuario>_data.json` | Perfil, `followers_list`, `following_list`, `publications`, `seguidores_detalle` (foto, publicaciones, seguidores y seguidos de cada seguidor), `engagement`, `benford` (ver [Ley de Benford](#ley-de-benford)) y `analysis` |
 | `<usuario>_analisis.txt` | Solo el análisis de Gemini |
 | `fotos/<seguidor>.jpg` | Foto de perfil de cada seguidor |
 
@@ -131,13 +151,14 @@ a mano en la ventana que abre el programa.
 |---|---|
 | `main.py` | Todo el programa: scraping, engagement, análisis con Gemini y guardado |
 | `web/fetch.js` | Función que corre dentro de Chrome y hace las peticiones en paralelo |
-| `web/index.html` | Abre un `<usuario>_data.json` y muestra la gráfica de Benford y el resto de los datos |
+| `web/index.html` | Abre un `<usuario>_data.json` y muestra perfil, Benford, análisis de personalidad, engagement, mejores publicaciones y seguidores |
 | `.env.example` | Plantilla de cookies de Instagram y clave de Gemini |
 | `requirements.txt` | Dependencias |
 
 ## Notas
 
 - Instagram cambia sus endpoints con frecuencia; algunas secciones pueden salir vacías.
+- `web/index.html` busca las fotos en `../fotos/`. Mantén la página dentro de `web/` y las fotos en `fotos/` de la raíz del proyecto; si no, las fotos no se ven (el resto de la página sí funciona).
 - Pedir muchos datos puede provocar límites o bloqueos en la cuenta.
 - No subas a Git `.env`, `.chrome_profile/`, `fotos/`, `scrap/`, `*_data.json` ni `*_analisis.txt` (ya están en `.gitignore`). `.env.example` sí se sube, porque es solo la plantilla.
 - Proyecto académico: el scraping puede ir contra los Términos de Uso de Instagram y los datos pueden ser personales. Úsalo con responsabilidad.

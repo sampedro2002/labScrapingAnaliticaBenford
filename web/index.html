@@ -2,56 +2,311 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Resultados</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis de perfil</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+    :root {
+        --fondo: #f7f7f5;
+        --tarjeta: #ffffff;
+        --texto: #1f2328;
+        --texto-suave: #6e7781;
+        --borde: #d8dee4;
+        --seguidores: #2563eb;
+        --benford: #111827;
+        --alerta: #b91c1c;
+        --nivel-alta: #1d4ed8;
+        --nivel-media: #60a5fa;
+        --nivel-baja: #bfdbfe;
+        --nivel-texto: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --fondo: #0d1117;
+            --tarjeta: #161b22;
+            --texto: #e6edf3;
+            --texto-suave: #8b949e;
+            --borde: #30363d;
+            --benford: #e6edf3;
+            --nivel-baja: #1e3a5f;
+            --nivel-texto: #e6edf3;
+        }
+    }
+    :root[data-theme="dark"] {
+        --fondo: #0d1117;
+        --tarjeta: #161b22;
+        --texto: #e6edf3;
+        --texto-suave: #8b949e;
+        --borde: #30363d;
+        --benford: #e6edf3;
+        --nivel-baja: #1e3a5f;
+        --nivel-texto: #e6edf3;
+    }
+    body { margin: 0; padding: 16px; background: var(--fondo); color: var(--texto); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .contenedor { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    h2.seccion { font-size: 1.1rem; margin: 28px 0 12px; }
+    .subtitulo, .nota { color: var(--texto-suave); font-size: 0.85rem; line-height: 1.4; }
+    .subtitulo { margin: 0 0 16px; }
+    .nota { margin: 12px 0 0; }
+    .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    button { padding: 8px 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--tarjeta); color: var(--texto); cursor: pointer; }
+    #error { color: var(--alerta); font-size: 0.9rem; }
+
+    .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .tarjeta, .grafica, .tabla { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; }
+    .tarjeta { padding: 14px 16px; }
+    .tarjeta h3 { font-size: 0.95rem; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+    .punto { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .metrica { display: flex; justify-content: space-between; gap: 12px; font-size: 0.9rem; padding: 2px 0; }
+    .metrica span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .grande { font-size: 2rem; font-weight: 700; margin: 4px 0; }
+    .grafica { padding: 16px; margin-top: 12px; }
+
+    .bio { margin: 0 0 12px; line-height: 1.4; }
+    .rasgo { display: grid; grid-template-columns: 130px 70px 1fr; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--borde); font-size: 0.9rem; }
+    .rasgo:first-child { border-top: 0; }
+    .rasgo-nombre { font-weight: 600; }
+    .nivel { text-align: center; border-radius: 999px; padding: 2px 0; font-size: 0.8rem; font-weight: 600; color: var(--nivel-texto); }
+    .nivel-alta { background: var(--nivel-alta); }
+    .nivel-media { background: var(--nivel-media); }
+    .nivel-baja { background: var(--nivel-baja); }
+
+    .tabla { overflow: auto; max-height: 420px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--borde); font-variant-numeric: tabular-nums; }
+    th { position: sticky; top: 0; background: var(--tarjeta); color: var(--texto-suave); font-weight: 600; }
+    th:first-child, td:first-child { text-align: left; }
+    td a { color: var(--seguidores); }
+    .usuario { display: flex; align-items: center; gap: 10px; }
+    .usuario img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--borde); }
+    @media (max-width: 600px) { .rasgo { grid-template-columns: 1fr; gap: 4px; } .nivel { width: 70px; } }
+</style>
 </head>
 <body>
-<button id="elegirCarpeta">Elegir carpeta del proyecto</button>
-<input type="file" id="archivo" accept=".json">
-<p id="error"></p>
-<canvas id="grafica"></canvas>
-<pre id="datos"></pre>
+<div class="contenedor">
+    <h1 id="titulo">Análisis de perfil</h1>
+    <p class="subtitulo" id="subtitulo">Carga un JSON generado por main.py</p>
+
+    <div class="acciones">
+        <button id="elegirCarpeta">Elegir carpeta del proyecto</button>
+        <input type="file" id="archivo" accept=".json">
+    </div>
+    <p id="error"></p>
+
+    <div id="contenido" hidden>
+        <div id="perfil"></div>
+
+        <h2 class="seccion">Ley de Benford</h2>
+        <div class="tarjetas" id="tarjetas"></div>
+        <div class="grafica"><canvas id="grafica"></canvas></div>
+        <p class="nota">
+            χ² = Σ (observado − esperado)² / esperado, con esperado = n · log10(1 + 1/d) y 8 grados de libertad.
+            Valor crítico con α = 0.05: 15.507.
+            El porcentaje es ½ · Σ |observado − esperado|: cuánto se aleja la gráfica de Benford. No es una probabilidad real de bot.
+        </p>
+
+        <h2 class="seccion">Análisis de personalidad (IA · Big Five)</h2>
+        <div class="tarjeta" id="analisis"></div>
+
+        <h2 class="seccion">Engagement</h2>
+        <div class="tarjetas" id="engagement"></div>
+        <h2 class="seccion">Mejores publicaciones</h2>
+        <div class="tabla" id="top"></div>
+
+        <h2 class="seccion" id="tituloSeguidores">Seguidores</h2>
+        <div class="tabla" id="seguidores"></div>
+    </div>
+</div>
+
 <script>
 // cambia aquí: nombre del JSON que se muestra (debe estar en la carpeta del proyecto)
 const JSON_ARCHIVO = "alondra_cgp_data.json";
+const DIGITOS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+const color = (nombre) => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+const COLORES = {seguidores: color("--seguidores"), benford: color("--benford")};
 
 let grafica;
 let carpeta = null;
 
-function mostrar(data) {
-    const {benford, ...resto} = data;
-    const digitos = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+// ---------------------------------------------------------------- utilidades
+const esc = (texto) => String(texto ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const entero = (n) => n == null ? "—" : n.toLocaleString("es", {useGrouping: "always"});
+const porcentaje = (valor) => `${(valor * 100).toFixed(1)}%`;
+const fila = (nombre, valor) => `<div class="metrica"><span>${nombre}</span><span>${valor}</span></div>`;
+const seccion = (id, html) => { document.getElementById(id).innerHTML = html; };
 
+// Respaldo para JSON generados con la versión anterior de main.py (sin chi²)
+function calcularBenford(valores) {
+    const digitos = valores.filter(n => Number.isInteger(n) && n > 0).map(n => Number(String(n)[0]));
+    const n = digitos.length;
+    const esperado = {}, conteo = {}, observado = {};
+    let chi2 = 0;
+    for (const d of DIGITOS) {
+        esperado[d] = Math.log10(1 + 1 / d);
+        conteo[d] = digitos.filter(x => x === d).length;
+        observado[d] = conteo[d] / n;
+        chi2 += (conteo[d] - n * esperado[d]) ** 2 / (n * esperado[d]);
+    }
+    const mitad = chi2 / 2;
+    const p_value = Math.exp(-mitad) * [0, 1, 2, 3].reduce((s, k) => s + mitad ** k / [1, 1, 2, 6][k], 0);
+    return {muestra: n, conteo, observado, esperado, chi2, p_value};
+}
+
+// ---------------------------------------------------------------- secciones
+function perfil(data) {
+    return `
+        <div class="tarjeta">
+            <p class="bio">${esc(data.bio) || "Sin biografía"}</p>
+            <div class="tarjetas">
+                ${fila("Seguidores", entero(data.followers))}
+                ${fila("Seguidos", entero(data.following))}
+                ${fila("Publicaciones", entero(data.posts))}
+            </div>
+        </div>`;
+}
+
+function tarjetasBenford(bf, desviacion) {
+    return `
+        <div class="tarjeta">
+            <h3><span class="punto" style="background:${COLORES.seguidores}"></span>Seguidores de sus seguidores</h3>
+            ${fila("Muestra (n)", bf.muestra)}
+            ${fila("χ²", bf.chi2.toFixed(3))}
+            ${fila("gl", 8)}
+            ${fila("p-valor", bf.p_value.toFixed(4))}
+        </div>
+        <div class="tarjeta">
+            <h3>Probabilidad de bot</h3>
+            <div class="grande">${porcentaje(desviacion)}</div>
+            ${fila("Benford original vs. gráfica", "")}
+        </div>`;
+}
+
+function graficar(bf) {
     if (grafica) grafica.destroy();
     grafica = new Chart(document.getElementById("grafica"), {
         data: {
-            labels: digitos,
+            labels: DIGITOS,
             datasets: [
-                {type: "bar", label: `Observado (n=${benford.muestra})`, data: digitos.map(d => benford.observado[d])},
-                {type: "line", label: "Benford esperado", data: digitos.map(d => benford.esperado[d])}
-            ]
-        }
+                {type: "bar", label: `Seguidores (n=${bf.muestra})`, data: DIGITOS.map(d => bf.observado[d]), backgroundColor: COLORES.seguidores, borderRadius: 4},
+                {type: "line", label: "Benford esperado", data: DIGITOS.map(d => bf.esperado[d]), borderColor: COLORES.benford, backgroundColor: COLORES.benford, borderDash: [6, 4], pointRadius: 4, tension: 0.25},
+            ],
+        },
+        options: {
+            responsive: true,
+            interaction: {mode: "index", intersect: false},
+            scales: {
+                x: {title: {display: true, text: "Primer dígito"}},
+                y: {beginAtZero: true, title: {display: true, text: "Proporción"}, ticks: {callback: porcentaje}},
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            if (ctx.dataset.type === "line") return `Esperado: ${porcentaje(ctx.parsed.y)}`;
+                            return `Observado: ${porcentaje(ctx.parsed.y)} (${bf.conteo[ctx.dataIndex + 1]} casos)`;
+                        },
+                    },
+                },
+            },
+        },
     });
+}
 
-    document.getElementById("datos").textContent = JSON.stringify(resto, null, 2);
+// "**Apertura**: Alta — evidencia" → una fila por rasgo; la "Nota de confianza" va como texto suave
+function analisis(texto) {
+    if (!texto) return `<p class="nota">Este JSON no tiene análisis de IA.</p>`;
+    return texto.split("\n").map(l => l.match(/^\*\*(.+?)\*\*:\s*(.*)$/)).filter(Boolean).map(([, rasgo, resto]) => {
+        if (rasgo.startsWith("Nota")) return `<p class="nota">${esc(rasgo)}: ${esc(resto)}</p>`;
+        const [nivel, ...evidencia] = resto.split(" — ");
+        return `<div class="rasgo">
+            <span class="rasgo-nombre">${esc(rasgo)}</span>
+            <span class="nivel nivel-${esc(nivel.toLowerCase())}">${esc(nivel)}</span>
+            <span>${esc(evidencia.join(" — "))}</span>
+        </div>`;
+    }).join("");
+}
+
+function engagement(e) {
+    if (!e?.total_posts) return `<p class="nota">Este JSON no tiene engagement.</p>`;
+    return `
+        <div class="tarjeta">
+            ${fila("Publicaciones analizadas", entero(e.total_posts))}
+            ${fila("Likes totales", entero(e.total_likes))}
+            ${fila("Comentarios totales", entero(e.total_comments))}
+        </div>
+        <div class="tarjeta">
+            ${fila("Interacciones totales", entero(e.total_engagement))}
+            ${fila("Promedio por publicación", e.avg_engagement.toFixed(1))}
+            ${fila("Interacciones por seguidor", e.engagement_rate_followers?.toFixed(2) ?? "—")}
+        </div>`;
+}
+
+function tabla(columnas, filas) {
+    const cabecera = columnas.map(c => `<th>${c}</th>`).join("");
+    const cuerpo = filas.map(f => `<tr>${f.map(c => `<td>${c}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${cabecera}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
+const enlace = (url, texto) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(texto)}</a>`;
+
+function mejoresPublicaciones(e) {
+    return tabla(["Publicación", "Likes", "Comentarios", "Engagement"],
+        (e?.top_5_posts ?? []).map(p => [
+            enlace(p.url, p.url.split("/p/")[1]?.replace("/", "") || p.url),
+            entero(p.likes), entero(p.comments_count), entero(p.engagement),
+        ]));
+}
+
+// Las fotos están en ../fotos/<usuario>.jpg (la ruta guardada en el JSON es absoluta y de otra carpeta)
+function seguidores(lista) {
+    return tabla(["Usuario", "Publicaciones", "Seguidores", "Seguidos"],
+        lista.map(s => [
+            `<span class="usuario"><img src="../fotos/${encodeURIComponent(s.username)}.jpg" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(s.username)}</span>`,
+            entero(s.publicaciones), entero(s.seguidores), entero(s.seguidos),
+        ]));
+}
+
+// ---------------------------------------------------------------- principal
+function mostrar(data) {
+    const detalle = data.seguidores_detalle ?? [];
+    const benford = data.benford?.chi2 != null ? data.benford : calcularBenford(detalle.map(s => s.seguidores));
+    // Distancia entre lo observado y Benford: 0% = idéntico, 100% = totalmente distinto
+    const desviacion = DIGITOS.reduce((s, d) => s + Math.abs(benford.observado[d] - benford.esperado[d]), 0) / 2;
+
+    document.getElementById("titulo").textContent = `Análisis de @${data.username}`;
+    document.getElementById("subtitulo").textContent = "Perfil, ley de Benford, personalidad (IA), engagement y seguidores";
+    seccion("perfil", perfil(data));
+    seccion("tarjetas", tarjetasBenford(benford, desviacion));
+    graficar(benford);
+    seccion("analisis", analisis(data.analysis));
+    seccion("engagement", engagement(data.engagement));
+    seccion("top", mejoresPublicaciones(data.engagement));
+    document.getElementById("tituloSeguidores").textContent = `Seguidores (${detalle.length})`;
+    seccion("seguidores", seguidores(detalle));
+    document.getElementById("contenido").hidden = false;
 }
 
 const error = document.getElementById("error");
 if (!window.showDirectoryPicker) error.textContent = "Para cargar automáticamente usa Chrome o Edge; o abre un JSON con el selector de archivo.";
 
-// Pide acceso a la carpeta del proyecto y carga JSON_ARCHIVO de inmediato
-document.getElementById("elegirCarpeta").onclick = async () => {
+async function cargar(obtenerArchivo) {
     try {
-        carpeta = await showDirectoryPicker();
-        const handle = await carpeta.getFileHandle(JSON_ARCHIVO);
-        mostrar(JSON.parse(await (await handle.getFile()).text()));
+        mostrar(JSON.parse(await (await obtenerArchivo()).text()));
         error.textContent = "";
     } catch (e) {
-        error.textContent = `No se pudo cargar ${JSON_ARCHIVO} desde la carpeta elegida`;
+        error.textContent = `No se pudo cargar el JSON: ${e.message}`;
     }
-};
+}
 
-document.getElementById("archivo").onchange = async (event) => mostrar(JSON.parse(await event.target.files[0].text()));
+// Pide acceso a la carpeta del proyecto y carga JSON_ARCHIVO de inmediato
+document.getElementById("elegirCarpeta").onclick = () => cargar(async () => {
+    carpeta = await showDirectoryPicker();
+    return (await carpeta.getFileHandle(JSON_ARCHIVO)).getFile();
+});
+
+document.getElementById("archivo").onchange = (event) => cargar(async () => event.target.files[0]);
 </script>
 </body>
 </html>
